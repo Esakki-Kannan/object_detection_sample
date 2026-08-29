@@ -1,0 +1,74 @@
+PODS:
+  - DartCvIOS (4.12.0.2):
+    - DartCvIOS/calib3d (= 4.12.0.2)
+    - DartCvIOS/contrib (= 4.12.0.2)
+    - DartCvIOS/core (= 4.12.0.2)
+    - DartCvIOS/features2d (= 4.12.0.2)
+    - DartCvIOS/imgproc (= 4.12.0.2)
+    - DartCvIOS/objdetect (= 4.12.0.2)
+    - DartCvIOS/photo (= 4.12.0.2)
+    - DartCvIOS/stitching (= 4.12.0.2)
+    - DartCvIOS/video (= 4.12.0.2)
+  - DartCvIOS/calib3d (4.12.0.2):
+    - DartCvIOS/core
+  - DartCvIOS/contrib (4.12.0.2):
+    - DartCvIOS/core
+  - DartCvIOS/core (4.12.0.2)
+  - DartCvIOS/dnn (4.12.0.2):
+    - DartCvIOS/core
+  - DartCvIOS/features2d (4.12.0.2):
+    - DartCvIOS/core
+  - DartCvIOS/imgproc (4.12.0.2):
+    - DartCvIOS/core
+  - DartCvIOS/objdetect (4.12.0.2):
+    - DartCvIOS/core
+  - DartCvIOS/photo (4.12.0.2):
+    - DartCvIOS/core
+  - DartCvIOS/stitching (4.12.0.2):
+    - DartCvIOS/core
+  - DartCvIOS/video (4.12.0.2):
+    - DartCvIOS/core
+  - DartCvIOS/videoio (4.12.0.2):
+    - DartCvIOS/core
+  - Flutter (1.0.0)
+  - image_picker_ios (0.0.1):
+    - Flutter
+  - opencv_dart (0.0.1):
+    - DartCvIOS (= 4.12.0.2)
+    - DartCvIOS/dnn (= 4.12.0.2)
+    - DartCvIOS/videoio (= 4.12.0.2)
+    - Flutter
+  - path_provider_foundation (0.0.1):
+    - Flutter
+    - FlutterMacOS
+
+DEPENDENCIES:
+  - Flutter (from `Flutter`)
+  - image_picker_ios (from `.symlinks/plugins/image_picker_ios/ios`)
+  - opencv_dart (from `.symlinks/plugins/opencv_dart/ios`)
+  - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
+
+SPEC REPOS:
+  trunk:
+    - DartCvIOS
+
+EXTERNAL SOURCES:
+  Flutter:
+    :path: Flutter
+  image_picker_ios:
+    :path: ".symlinks/plugins/image_picker_ios/ios"
+  opencv_dart:
+    :path: ".symlinks/plugins/opencv_dart/ios"
+  path_provider_foundation:
+    :path: ".symlinks/plugins/path_provider_foundation/darwin"
+
+SPEC CHECKSUMS:
+  DartCvIOS: 31615ff863f0fc709aee9b93dc3afa3500d35ba7
+  Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
+  image_picker_ios: 7fe1ff8e34c1790d6fff70a32484959f563a928a
+  opencv_dart: 71fc6f2ae1f9feb2f143eeee32823f3dc492ab47
+  path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
+
+PODFILE CHECKSUM: 4305caec6b40dde0ae97be1573c53de1882a07e5
+
+COCOAPODS: 1.17.0
