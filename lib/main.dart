@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'product_db.dart';
 import 'screens/detect_screen.dart';
+import 'screens/products_screen.dart';
 import 'screens/train_screen.dart';
 
 void main() {
@@ -57,6 +58,7 @@ class _HomeShellState extends State<HomeShell> {
         children: [
           DetectScreen(db: _db),
           TrainScreen(db: _db),
+          ProductsScreen(db: _db),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -65,8 +67,9 @@ class _HomeShellState extends State<HomeShell> {
         destinations: const [
           NavigationDestination(icon: Icon(Icons.search), label: 'Detect'),
           NavigationDestination(icon: Icon(Icons.add_box), label: 'Train'),
-        ],
-      ),
+          NavigationDestination(icon: Icon(Icons.inventory), label: 'Products'),
+        ]
+      )
     );
   }
 }

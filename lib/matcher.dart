@@ -17,6 +17,7 @@ class ProductMatcher {
     double tolerancePct,
     double matrixWeight,
   ) {
+    print('tolerancepct $tolerancePct, ,matrixweight $matrixWeight');
     final candidates = <MatrixMatch>[];
     for (final p in products) {
       final dimensionScore = OpenCVService.distance(inputWidth, inputHeight, p.width, p.height);

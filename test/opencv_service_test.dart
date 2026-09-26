@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:product_matcher/models/product.dart';
 import 'package:product_matcher/opencv_service.dart';

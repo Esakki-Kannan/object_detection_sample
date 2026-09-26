@@ -33,6 +33,7 @@ class _DetectScreenState extends State<DetectScreen> {
 
   /// How strongly the internal matrix matters vs dimensions (0..1).
   double _matrixWeight = 0.6;
+  bool _showGrid = true;
 
   Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
@@ -76,7 +77,7 @@ class _DetectScreenState extends State<DetectScreen> {
 
     Uint8List? annotated;
     if (objects.isNotEmpty) {
-      annotated = OpenCVService.drawAnnotatedBytes(bytes, objects.map((o) => o.label).toList());
+      annotated = OpenCVService.drawAnnotatedBytes(bytes, objects.map((o) => o.label).toList(), showGrid: _showGrid);
     }
 
     setState(() {
@@ -182,6 +183,14 @@ class _DetectScreenState extends State<DetectScreen> {
               Text(_matrixWeight.toStringAsFixed(1)),
             ],
           ),
+          SwitchListTile(
+            title: const Text('Show grid'),
+            value: _showGrid,
+            onChanged: (v) {
+              setState(() => _showGrid = v);
+              if (_objects.isNotEmpty) _detect();
+            },
+          ),
           const SizedBox(height: 8),
           if (_processing)
             const Center(child: CircularProgressIndicator())
@@ -195,6 +204,29 @@ class _DetectScreenState extends State<DetectScreen> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: Image.memory(_annotated!, height: 260, fit: BoxFit.cover),
+              ),
+              const SizedBox(height: 8),
+              // Grid preview(s) below detected image
+              Text('Matrix grid (64×64, white=body, black=hole/bg)',
+                  style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: _objects.map((ui) {
+                  final gridBytes = ui.obj.matrix != null
+                      ? OpenCVService.matrixToGridImage(ui.obj.matrix!, label: ui.obj.label ?? 'no match')
+                      : null;
+                  return gridBytes == null
+                      ? const SizedBox()
+                      : Column(
+                          children: [
+                            Image.memory(gridBytes, width: 140, height: 150, fit: BoxFit.contain),
+                            const SizedBox(height: 4),
+                            Text('${ui.obj.width}×${ui.obj.height}', style: const TextStyle(fontSize: 11)),
+                          ],
+                        );
+                }).toList(),
               ),
               const SizedBox(height: 8),
               IconButton(

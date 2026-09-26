@@ -41,8 +41,9 @@ class MatrixMatch {
 /// Steps: BGR -> HSV -> inRange (green mask) -> morphology close/open
 /// -> dilate/erode -> findContours -> merge nearby -> filter by area.
 class OpenCVService {
-  static const _lowerGreen = (25.0, 12.0, 50.0);
-  static const _upperGreen = (95.0, 55.0, 145.0);
+  // Combined range to cover old light green (H 25-45) + new saturated green (H 68-98)
+  static const _lowerGreen = (25.0, 12.0, 35.0);
+  static const _upperGreen = (98.0, 170.0, 185.0);
 
   static const _minArea = 500;
   static const _mergeDistance = 80;
@@ -68,7 +69,8 @@ class OpenCVService {
   /// Draws a bounding box + optional label on EVERY detected green object and
   /// returns the annotated JPEG bytes. [labels] provides the name to draw for
   /// each object (index-aligned with detection order). Returns null if none.
-  static Uint8List? drawAnnotatedBytes(Uint8List source, List<String?> labels) {
+  /// When [showGrid] is true, draws the 64×64 grid lines inside each box.
+  static Uint8List? drawAnnotatedBytes(Uint8List source, List<String?> labels, {bool showGrid = false}) {
     final img = imdecode(source, IMREAD_COLOR);
     if (img.isEmpty) return null;
     try {
@@ -78,12 +80,57 @@ class OpenCVService {
       for (var i = 0; i < objects.length; i++) {
         final label = i < labels.length ? labels[i] : null;
         _drawBox(img, objects[i].rect, label);
+        if (showGrid) _drawGrid(img, objects[i].rect);
       }
 
       final (ok, bytes) = imencode('.jpg', img);
       return ok ? bytes : null;
     } finally {
       img.dispose();
+    }
+  }
+
+  /// Renders a single matrix (64×64) as a zoomed grid image (white=1, black=0)
+  /// with grid lines. [cellSize] controls zoom (e.g. 4 => 256×256 image).
+  static Uint8List matrixToGridImage(List<int> matrix, {int cellSize = 4, String? label}) {
+    final size = matrixSize * cellSize;
+    final extra = label != null ? 28 : 0;
+    final img = Mat.zeros(size + extra, size, MatType.CV_8UC3);
+    // fill cells
+    for (var r = 0; r < matrixSize; r++) {
+      for (var c = 0; c < matrixSize; c++) {
+        final v = matrix[r * matrixSize + c];
+        final color = v == 1 ? Scalar(255, 255, 255) : Scalar(0, 0, 0);
+        final x = c * cellSize, y = r * cellSize;
+        rectangle(img, Rect(x, y, cellSize, cellSize), color, thickness: -1);
+      }
+    }
+    // grid lines (thin grey)
+    final gridColor = Scalar(80, 80, 80);
+    for (var i = 0; i <= matrixSize; i++) {
+      final p = i * cellSize;
+      line(img, Point(p, 0), Point(p, size), gridColor, thickness: 1);
+      line(img, Point(0, p), Point(size, p), gridColor, thickness: 1);
+    }
+    // outer border green
+    rectangle(img, Rect(0, 0, size, size), Scalar(0, 255, 0), thickness: 2);
+    if (label != null) {
+      putText(img, label, Point(6, size + 20), FONT_HERSHEY_SIMPLEX, 0.6, Scalar(0, 255, 0), thickness: 2);
+    }
+    final (ok, bytes) = imencode('.jpg', img);
+    img.dispose();
+    return ok ? bytes : Uint8List(0);
+  }
+
+  static void _drawGrid(Mat img, Rect rect) {
+    final stepX = rect.width / matrixSize;
+    final stepY = rect.height / matrixSize;
+    final color = Scalar(0, 255, 255); // yellow grid
+    for (var i = 1; i < matrixSize; i++) {
+      final x = (rect.x + i * stepX).round();
+      line(img, Point(x, rect.y), Point(x, rect.y + rect.height), color, thickness: 1);
+      final y = (rect.y + i * stepY).round();
+      line(img, Point(rect.x, y), Point(rect.x + rect.width, y), color, thickness: 1);
     }
   }
 
