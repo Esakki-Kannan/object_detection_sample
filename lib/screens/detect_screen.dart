@@ -11,7 +11,7 @@ import '../product_db.dart';
 
 class _ObjectUi {
   final DetectedObject obj;
-  final MatrixMatch? match;
+  final FeatureMatch? match;
   _ObjectUi(this.obj, this.match);
 }
 
@@ -31,8 +31,8 @@ class _DetectScreenState extends State<DetectScreen> {
   double _tolerance = 10;
   bool _noGreen = false;
 
-  /// How strongly the internal matrix matters vs dimensions (0..1).
-  double _matrixWeight = 0.6;
+  /// How strongly the ORB feature score matters vs dimensions (0..1).
+  double _orbWeight = 0.6;
   bool _showGrid = true;
 
   Future<void> _pickImage(ImageSource source) async {
@@ -66,19 +66,21 @@ class _DetectScreenState extends State<DetectScreen> {
         products,
         obj.width,
         obj.height,
-        obj.matrix,
+        obj.orbDescriptors,
         _tolerance,
-        _matrixWeight,
+        _orbWeight,
+        inputMatrix: obj.matrix,
       );
       obj.label = match?.name;
       obj.matchDistance = match?.combinedScore;
       uiList.add(_ObjectUi(obj, match));
     }
 
-    Uint8List? annotated;
-    if (objects.isNotEmpty) {
-      annotated = OpenCVService.drawAnnotatedBytes(bytes, objects.map((o) => o.label).toList(), showGrid: _showGrid);
-    }
+    // Reuse the objects just matched on instead of running detection a second
+    // time for the drawing step.
+    final annotated = objects.isEmpty
+        ? null
+        : OpenCVService.annotateObjects(bytes, objects, showGrid: _showGrid);
 
     setState(() {
       _objects = uiList;
@@ -164,23 +166,23 @@ class _DetectScreenState extends State<DetectScreen> {
           const SizedBox(height: 8),
           Row(
             children: [
-              const Text('Matrix:'),
+              const Text('ORB:'),
               Expanded(
                 child: Slider(
-                  value: _matrixWeight,
+                  value: _orbWeight,
                   min: 0,
                   max: 1,
                   divisions: 10,
-                  label: _matrixWeight.toStringAsFixed(1),
+                  label: _orbWeight.toStringAsFixed(1),
                   onChanged: _processing
                       ? null
                       : (v) {
-                          setState(() => _matrixWeight = v);
+                          setState(() => _orbWeight = v);
                           if (_objects.isNotEmpty) _detect();
                         },
                 ),
               ),
-              Text(_matrixWeight.toStringAsFixed(1)),
+              Text(_orbWeight.toStringAsFixed(1)),
             ],
           ),
           SwitchListTile(
@@ -207,7 +209,7 @@ class _DetectScreenState extends State<DetectScreen> {
               ),
               const SizedBox(height: 8),
               // Grid preview(s) below detected image
-              Text('Matrix grid (64×64, white=body, black=hole/bg)',
+              Text('Shape matrix (64×64, white=body, black=hole/bg)',
                   style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: 8),
               Wrap(
@@ -242,6 +244,11 @@ class _DetectScreenState extends State<DetectScreen> {
               ..._objects.map((ui) {
                 final match = ui.match;
                 final matched = match?.name;
+                final features = ui.obj.hasOrbDescriptors
+                    ? 'ORB match'
+                    : match != null && match.featureScore > 0
+                        ? 'Matrix match'
+                        : 'no features';
                 return Card(
                   child: ListTile(
                     leading: matched != null
@@ -251,7 +258,8 @@ class _DetectScreenState extends State<DetectScreen> {
                     subtitle: Text(
                       'Size: ${ui.obj.width} x ${ui.obj.height} px'
                       '${match != null ? '\nSize diff: ${match.dimensionScore.toStringAsFixed(1)}%  '
-                          'Matrix diff: ${(match.matrixScore * 100).toStringAsFixed(1)}%' : ''}',
+                          '$features: ${(match.featureScore * 100).toStringAsFixed(0)}%  '
+                          'ORB keypoints: ${ui.obj.orbDescriptorCount}' : ''}',
                     ),
                   ),
                 );

@@ -22,9 +22,12 @@ class _ProductVerifyScreenState extends State<ProductVerifyScreen> {
   Uint8List? _annotated;
   List<DetectedObject> _objects = [];
   bool _processing = false;
-  bool? _matched; // null = not checked, true/false after check
+
+  /// null = not checked, true/false after a check.
+  bool? _matched;
+
   double _tolerance = 10;
-  double _matrixWeight = 0.6;
+  double _orbWeight = 0.6;
   bool _showGrid = true;
 
   Future<void> _pick(ImageSource src) async {
@@ -34,6 +37,7 @@ class _ProductVerifyScreenState extends State<ProductVerifyScreen> {
     setState(() {
       _image = file;
       _annotated = null;
+      _objects = [];
       _matched = null;
     });
     await _check();
@@ -45,37 +49,49 @@ class _ProductVerifyScreenState extends State<ProductVerifyScreen> {
     final bytes = await _image!.readAsBytes();
     final objects = OpenCVService.detectGreenObjectsBytes(bytes);
     final product = widget.db.products[widget.productName];
+
     if (product == null || objects.isEmpty) {
+      if (!mounted) return;
       setState(() {
         _matched = false;
+        _objects = objects;
+        _annotated = null;
         _processing = false;
       });
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Part Not matched'), backgroundColor: Colors.red),
       );
       return;
     }
 
-    bool anyMatch = false;
+    var anyMatch = false;
     for (final obj in objects) {
-      final m = ProductMatcher.matchObject([product], obj.width, obj.height, obj.matrix, _tolerance, _matrixWeight);
+      // Match against this single product only; the feature pass carries the
+      // ORB descriptors extracted from the photo and the stored reference.
+      final m = ProductMatcher.matchObject(
+        [product],
+        obj.width,
+        obj.height,
+        obj.orbDescriptors,
+        _tolerance,
+        _orbWeight,
+        inputMatrix: obj.matrix,
+      );
       if (m != null) {
         anyMatch = true;
         obj.label = product.name;
+        obj.matchDistance = m.combinedScore;
         break;
       }
     }
 
-    Uint8List? annotated;
+    // Reuse the matched objects for drawing so no second detection pass runs.
+    final annotated = OpenCVService.annotateObjects(bytes, objects, showGrid: _showGrid);
     if (anyMatch) {
-      final labels = objects.map((o) => o.label).toList();
-      annotated = OpenCVService.drawAnnotatedBytes(bytes, labels, showGrid: _showGrid);
       await widget.db.markVerified(widget.productName);
-    } else {
-      annotated = OpenCVService.drawAnnotatedBytes(bytes, List.filled(objects.length, null), showGrid: _showGrid);
     }
 
+    if (!mounted) return;
     setState(() {
       _objects = objects;
       _matched = anyMatch;
@@ -83,10 +99,10 @@ class _ProductVerifyScreenState extends State<ProductVerifyScreen> {
       _processing = false;
     });
 
-    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(anyMatch ? 'Part detected successfully: ${widget.productName}' : 'Part Not matched'),
+        content: Text(
+            anyMatch ? 'Part detected successfully: ${widget.productName}' : 'Part Not matched'),
         backgroundColor: anyMatch ? Colors.green : Colors.red,
       ),
     );
@@ -95,11 +111,15 @@ class _ProductVerifyScreenState extends State<ProductVerifyScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton: _matched==true?        FloatingActionButton(onPressed: (){Navigator.of(context).pop(true);},
-        backgroundColor: Colors.green,
-        child: const Icon(Icons.check),
-
-      ):null,
+      floatingActionButton: _matched == true
+          ? FloatingActionButton(
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+              backgroundColor: Colors.green,
+              child: const Icon(Icons.check),
+            )
+          : null,
       appBar: AppBar(title: Text('Verify: ${widget.productName}')),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -123,49 +143,62 @@ class _ProductVerifyScreenState extends State<ProductVerifyScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          if (_image != null)...[
-            Text('INPUT:'),
+          if (_image != null) ...[
+            const Text('INPUT:'),
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Image.file(File(_image!.path), height: 200, fit: BoxFit.cover),
             ),
           ],
-
           const SizedBox(height: 12),
-          // Row(
-          //   children: [
-          //     const Text('Tolerance:'),
-          //     Expanded(
-          //       child: Slider(
-          //         value: _tolerance,
-          //         min: 1,
-          //         max: 30,
-          //         divisions: 29,
-          //         label: '${_tolerance.toStringAsFixed(0)}%',
-          //         onChanged: (v) => setState(() => _tolerance = v),
-          //       ),
-          //     ),
-          //     Text('${_tolerance.toStringAsFixed(0)}%'),
-          //   ],
-          // ),
-          // Row(
-          //   children: [
-          //     const Text('Matrix:'),
-          //     Expanded(
-          //       child: Slider(
-          //         value: _matrixWeight,
-          //         min: 0,
-          //         max: 1,
-          //         divisions: 10,
-          //         label: _matrixWeight.toStringAsFixed(1),
-          //         onChanged: (v) => setState(() => _matrixWeight = v),
-          //       ),
-          //     ),
-          //     Text(_matrixWeight.toStringAsFixed(1)),
-          //   ],
-          // ),
-          // const SizedBox(height: 8),
-          if (_processing) const Center(child: CircularProgressIndicator()),
+          Row(
+            children: [
+              const Text('Tolerance:'),
+              Expanded(
+                child: Slider(
+                  value: _tolerance,
+                  min: 1,
+                  max: 30,
+                  divisions: 29,
+                  label: '${_tolerance.toStringAsFixed(0)}%',
+                  onChanged: _processing
+                      ? null
+                      : (v) {
+                          setState(() => _tolerance = v);
+                          if (_matched != null) _check();
+                        },
+                ),
+              ),
+              Text('${_tolerance.toStringAsFixed(0)}%'),
+            ],
+          ),
+          Row(
+            children: [
+              const Text('ORB:'),
+              Expanded(
+                child: Slider(
+                  value: _orbWeight,
+                  min: 0,
+                  max: 1,
+                  divisions: 10,
+                  label: _orbWeight.toStringAsFixed(1),
+                  onChanged: _processing
+                      ? null
+                      : (v) {
+                          setState(() => _orbWeight = v);
+                          if (_matched != null) _check();
+                        },
+                ),
+              ),
+              Text(_orbWeight.toStringAsFixed(1)),
+            ],
+          ),
+          if (_processing) ...[
+            const SizedBox(height: 12),
+            const Center(
+                child: SizedBox(
+                    height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 3))),
+          ],
           SwitchListTile(
             title: const Text('Show grid'),
             value: _showGrid,
@@ -176,43 +209,44 @@ class _ProductVerifyScreenState extends State<ProductVerifyScreen> {
           ),
           if (_matched != null && !_processing) ...[
             const SizedBox(height: 8),
-            if (_annotated != null&&_matched==true) ...[
-              Text('OUTPUT:'),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.memory(_annotated!, height: 260, fit: BoxFit.cover),
-              ),
+            if (_matched == true) ...[
+              const Text('Match — bounding box with name shown above',
+                  style: TextStyle(color: Colors.green, fontWeight: FontWeight.w600)),
+              if (_annotated != null) ...[
+                const SizedBox(height: 12),
+                const Text('OUTPUT:'),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.memory(_annotated!, height: 260, fit: BoxFit.cover),
+                ),
+              ],
               const SizedBox(height: 12),
-              Text('Matrix grid (64×64)', style: Theme.of(context).textTheme.titleSmall),
+              Text('Shape matrix (64×64)', style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 12,
                 runSpacing: 12,
                 children: _objects.map((o) {
-                  final gridBytes = o.matrix != null ? OpenCVService.matrixToGridImage(o.matrix!, label: o.label ?? 'no match') : null;
-                  return gridBytes == null ? const SizedBox() : Image.memory(gridBytes, width: 140, height: 150, fit: BoxFit.contain);
+                  final gridBytes = o.matrix != null
+                      ? OpenCVService.matrixToGridImage(o.matrix!, label: o.label ?? 'no match')
+                      : null;
+                  return gridBytes == null
+                      ? const SizedBox()
+                      : Image.memory(gridBytes, width: 140, height: 150, fit: BoxFit.contain);
                 }).toList(),
               ),
-              const SizedBox(height: 12),
-            ],
-            if (_matched == true) ...[
-              const Text('Match — bounding box with name shown above', style: TextStyle(color: Colors.green, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 12),
-    //           FloatingActionButton(onPressed: (){Navigator.of(context).pop(true);},
-    // child: const Icon(Icons.check),
-    //
-    // ),
-              // SizedBox(
-              //   width: double.infinity,
-              //   child: FilledButton.icon(
-              //     icon: const Icon(Icons.check),
-              //     label: const Text(''),
-              //     style: FilledButton.styleFrom(backgroundColor: Colors.green),
-              //     onPressed: () => Navigator.of(context).pop(true),
-              //   ),
-              // ),
+              const SizedBox(height: 8),
+              ..._objects.where((o) => o.label != null).map(
+                    (o) => Text(
+                      '${o.label}: ${o.width}x${o.height}px  •  '
+                      'ORB keypoints: ${o.orbDescriptorCount}'
+                      '${o.matchDistance != null ? '  •  score: ${(o.matchDistance! * 100).toStringAsFixed(0)}%' : ''}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
             ] else
-              const Text('No match for the selected product', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
+              const Text('No match for the selected product',
+                  style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
           ],
         ],
       ),

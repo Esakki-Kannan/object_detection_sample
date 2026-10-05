@@ -53,9 +53,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   child: ListTile(
                     leading: Icon(Icons.inventory_2, color: verified ? Colors.green : Colors.grey),
                     title: Text(p.name, style: TextStyle(fontWeight: FontWeight.w600, color: verified ? Colors.green.shade800 : null)),
-                    subtitle: Text(
-                        // 'avg ${p.width} × ${p.height} px  •  ${p.measurements.length} image(s)'
-                        '${verified ? 'Verified' : ''}'),
+                    subtitle: Text(verified ? 'Verified' : ''),
                     trailing: verified
                         ? const Icon(Icons.check_circle, color: Colors.green)
                         : const Icon(Icons.chevron_right),

@@ -61,7 +61,8 @@ class _TrainScreenState extends State<TrainScreen> {
       _status = dims == null
           ? 'No green object detected'
           : 'Detected: ${dims.width} x ${dims.height} px'
-              '${largest!.matrix != null ? ' (matrix: 64x64 saved)' : ' (no matrix)'}';
+              '${largest!.hasOrbDescriptors ? ' (ORB: ${largest.orbDescriptorCount} keypoints)' : ' (no ORB features)'}'
+              '${largest.matrix != null ? '  + 64x64 matrix' : ''}';
       _processing = false;
     });
   }
@@ -87,15 +88,19 @@ class _TrainScreenState extends State<TrainScreen> {
       height: _dims!.height,
       sourceImage: file.name,
       matrix: _obj?.matrix,
+      orbDescriptors: _obj?.orbDescriptors,
     );
     await widget.db.addMeasurement(name, m);
     if (!mounted) return;
+    final orbCount = m.orbDescriptorCount;
     setState(() {
       _pendingImages.clear();
       _image = null;
       _dims = null;
+      _obj = null;
       _currentName = name;
-      _status = 'Added measurement to "$name"';
+      _status = 'Added measurement to "$name"'
+          '${orbCount > 0 ? ' (ORB: $orbCount descriptors)' : ''}';
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Measurement saved to "$name"')),
@@ -217,7 +222,8 @@ class _TrainScreenState extends State<TrainScreen> {
                   leading: const Icon(Icons.category),
                   title: Text(p.name),
                   subtitle: Text(
-                      'avg ${p.width} x ${p.height} px  •  ${p.measurements.length} image(s)'),
+                      'avg ${p.width} x ${p.height} px  •  ${p.measurements.length} image(s)'
+                      '  •  ${p.hasOrbDescriptors ? 'ORB ready' : 'no ORB'}'),
                   onTap: () {
                     setState(() {
                       _currentName = p.name;
