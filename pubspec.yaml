@@ -37,6 +37,11 @@ dependencies:
   opencv_dart: ^1.4.5
   image_picker: ^1.2.1
   path_provider: ^2.1.5
+  flutter_3d_controller: ^2.3.0
+  camera: ^0.11.2
+  path: ^1.9.1
+  model_viewer_plus: ^1.9.3
+  image_background_remover: ^2.0.1
 
 dev_dependencies:
   flutter_test:

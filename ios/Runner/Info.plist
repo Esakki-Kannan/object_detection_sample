@@ -49,5 +49,7 @@
 	<string>Used to capture photos of products to identify them.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Used to pick product images from your library.</string>
+	<key>NSCameraUsageDescription</key>
+    <string>This app uses the camera to measure object distance.</string>
 </dict>
 </plist>
