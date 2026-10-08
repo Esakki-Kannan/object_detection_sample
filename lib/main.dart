@@ -94,31 +94,49 @@
 
 import 'package:flutter/material.dart';
 import 'package:product_matcher/screens/object_distance_2/calibrate_and_measure_distance/calibrate_and_measure.dart';
+import 'package:product_matcher/screens/object_distance_2/calibrate_and_measure_distance/measure.dart';
 
 
-void main() {
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+
   runApp(const MyApp());
 }
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: Scaffold(
-        appBar: AppBar(title: const Text('Home')),
-        body: Center(
-          child: ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => CalibrateAndMeasurePage(),
-                ),
-              );
-            },
-            child: const Text('Open distance measurement'),
-          ),
+      home: HomePage(), // <- separate widget
+    );
+  }
+}
+
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // This context is below MaterialApp, so Navigator works
+    return Scaffold(
+      appBar: AppBar(title: const Text('Home')),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                // builder: (_) => CalibrateAndMeasurePage(),
+                builder: (_) => Measure(),
+
+              ),
+            );
+          },
+          child: const Text('Open distance measurement'),
         ),
       ),
     );

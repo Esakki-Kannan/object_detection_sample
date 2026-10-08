@@ -4,6 +4,7 @@
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class CalibrateAndMeasurePage extends StatefulWidget {
 
@@ -43,7 +44,38 @@ class _CalibrateAndMeasurePageState extends State<CalibrateAndMeasurePage> {
     _controller =
         CameraController(back, ResolutionPreset.high, enableAudio: false);
     await _controller!.initialize();
+    _focal = await focalFromHardware(back) ?? focalFrom35mm(26, _controller!.value.aspectRatio);
+    // _focal = await focalFromHardware(back);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+print('focal length of device $_focal');
     if (mounted) setState(() {});
+  }
+  double focalFrom35mm(double f35, double previewAspect) {
+    return f35 * previewAspect / 34.6; // 34.6mm ≈ long side of a 4:3 sensor, 35mm-equivalent
   }
 
   @override
@@ -81,7 +113,27 @@ class _CalibrateAndMeasurePageState extends State<CalibrateAndMeasurePage> {
       _updateDistance();
     });
   }
+  Future<double?> focalFromHardware(CameraDescription cam) async {
+    const channel = MethodChannel('camera_info');
+    try {
+      final r = await channel.invokeMethod<Map>('getCameraInfo', {
+        'front': cam.lensDirection == CameraLensDirection.front,
+      });
+      debugPrint('camera name: ${cam.name}, native result: $r');
+      if (r == null) return null;
 
+      final focalMm = (r['focalMm'] as num).toDouble();
+      final sw = (r['sensorW'] as num).toDouble();
+      final sh = (r['sensorH'] as num).toDouble();
+      final shortSide = sw < sh ? sw : sh;
+      return focalMm / shortSide;
+    } on PlatformException catch (e) {
+      debugPrint('Native error: ${e.code} ${e.message}');
+    } catch (e) {
+      debugPrint('Other error: $e');
+    }
+    return null;
+  }
   void _updateDistance() {
     final ppu = _pixelsPerUnit();
     if (_focal == null || ppu == null) return;
