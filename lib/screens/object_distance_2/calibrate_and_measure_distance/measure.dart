@@ -1,11 +1,10 @@
-/ calibrate_and_measure.dart  (no calibration version)
+// calibrate_and_measure.dart  (no calibration version)
 // 1) Capture image  2) Enter length & width  3) Tap "Calculate distance"
 //
 // Focal length comes from the camera hardware (platform channel "camera_info"),
 // with a fallback to a 35mm-equivalent estimate if the hardware lookup fails.
 
 import 'dart:io';
-
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
